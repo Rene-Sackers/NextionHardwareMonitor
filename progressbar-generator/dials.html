@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Document</title>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" integrity="sha512-Qlv6VSKh1gDKGoJbnyA5RMXYcvnpIqhO++MhIM2fStMcGT9i2T//tSwYFlcyoRRDcDZ+TYHpH8azBBCyhpSeqw==" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js" integrity="sha512-s/XK4vYVXTGeUSv4bRPOuxSDmDlTedEpMEcAQk0t/FMd9V6ft8iXdwSBxV0eD60c6w/tjotSlKu9J2AAW1ckTA==" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/gauge.js/1.3.7/gauge.min.js" integrity="sha512-J0d1VfdfTSDoDPEsahCtf2nC+groXdWkuQFyJjS+s3CpKj63X9Hf3pMEJtjIJt/ODh0QwTRx2/OioL+9fMoqSA==" crossorigin="anonymous"></script>
+</head>
+<body>
+	<canvas id="foo" width="150"></canvas>
+	<button id="save">save</button>
+	<button id="autosave">autosave</button>
+	<script>
+		var canvas = document.getElementById("foo");
+		var ctx = canvas.getContext("2d");
+
+		var background = "#000000";
+		var steps = 5;
+
+		var opts = {
+			angle: -0.5, // The span of the gauge arc
+			lineWidth: 0.1, // The line thickness
+			radiusScale: 1.15, // Relative radius
+			pointer: {
+				length: 0.38, // // Relative to gauge radius
+				strokeWidth: 0.013, // The thickness
+				color: '#00000000' // Fill color
+			},
+			limitMax: false,     // If false, max value increases automatically if value > maxValue
+			limitMin: false,     // If true, the min value of the gauge will be fixed
+			colorStart: '#6FADCF',   // Colors
+			colorStop: '#8FC0DA',    // just experiment with them
+			strokeColor: '#E0E0E0',  // to see which ones work best for you
+			generateGradient: false,
+			highDpiSupport: true,     // High resolution support
+		};
+
+		var target = document.getElementById('foo'); // your canvas element
+		var gauge = new Gauge(target).setOptions(opts); // create sexy gauge!
+
+		gauge.maxValue = 100; // set max gauge value
+		gauge.setMinValue(0);  // Prefer setter over gauge.minValue = 0
+		gauge.animationSpeed = 1; // set animation speed (32 is default value)
+
+		function drawBackground()
+		{
+			if (background === null)
+				return;
+
+			ctx.globalCompositeOperation = "destination-over";
+			ctx.fillStyle = background;
+			ctx.fillRect(0, 0, canvas.width, canvas.height)
+		}
+
+		drawBackground();
+
+		function save(value) {
+			gauge.set(value);
+			setTimeout(drawBackground, 50);
+			setTimeout(() => {
+				canvas.toBlob(function(blob) {
+					saveAs(blob, `gauge-${value}.png`);
+				});
+			}, 100);
+		}
+
+		function autoSave() {
+			var val = -steps;
+			var interval = setInterval(() => {
+				val += steps;
+
+				if (val > 100)
+				{
+					clearInterval(interval);
+					return;
+				}
+
+				save(val);
+			}, 500);
+		}
+
+		document.getElementById("save").onclick = () => {
+			save(50);
+		}
+
+		document.getElementById("autosave").onclick = () => {
+			autoSave();
+		}
+	</script>
+</body>
+</html>
