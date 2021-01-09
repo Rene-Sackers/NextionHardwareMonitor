@@ -164,14 +164,6 @@ namespace NextionHardwareMonitor.Console
 		{
 			_port = await GetSerialPort("COM5");
 			ListenToSerial(_port);
-
-			SendCommand("dim=10");
-			SetDialLabel(1, "CPU °C");
-			SetDialLabel(2, "GPU °C");
-			SetDialLabel(3, "CPU %");
-			SetDialLabel(4, "GPU %");
-			SetDialLabel(5, "RAM %");
-			SetDialLabel(6, "VRAM %");
 			
 			var cpuTempSensor = new WatchedSensor("/amdcpu/0/temperature/2");
 			var gpuTempSensor = new WatchedSensor("/gpu-nvidia/0/temperature/0");
@@ -183,6 +175,9 @@ namespace NextionHardwareMonitor.Console
 			var watcher = new SensorWatcher();
 			
 			watcher.Initialize();
+			//watcher.PrintSensors();
+			//System.Console.ReadKey();
+
 			watcher.WatchSensors(new[]
 			{
 				cpuTempSensor,
@@ -192,6 +187,14 @@ namespace NextionHardwareMonitor.Console
 				ramUsageSensor,
 				vramUsageSensor
 			});
+			
+			SendCommand("dim=50");
+			SetDialLabel(1, "CPU °C");
+			SetDialLabel(2, "GPU °C");
+			SetDialLabel(3, "CPU %");
+			SetDialLabel(4, "GPU %");
+			SetDialLabel(5, "RAM %");
+			SetDialLabel(6, "VRAM %");
 
 			var cancelRequested = false;
 			System.Console.CancelKeyPress += (_, _) => cancelRequested = true;
@@ -240,7 +243,7 @@ namespace NextionHardwareMonitor.Console
 		private static int GetProgressBarPicId(int value, int minValue = 0, int maxValue = 100)
 		{
 			value = Math.Clamp(value, minValue, maxValue);
-			var valuePercentage = (double)value / (maxValue - minValue) * 100;
+			var valuePercentage = ((double)value - minValue) / (maxValue - minValue) * 100;
 
 			return (int)Math.Floor(valuePercentage / 5) + ProgressBarStartIndex;
 		}
@@ -270,12 +273,14 @@ namespace NextionHardwareMonitor.Console
 			while (!port.IsOpen)
 				await Task.Delay(10);
 
-			SendCommand(port.BaseStream, string.Empty);
+			SendCommand(port, string.Empty);
 
 			if (newBaudRate == initialBaudRate)
 				return port;
 
-			SendCommand(port.BaseStream, $"baud={newBaudRate}");
+			SendCommand(port, $"baud={newBaudRate}");
+
+			await Task.Delay(500);
 
 			port.Close();
 			port.Dispose();
@@ -283,8 +288,12 @@ namespace NextionHardwareMonitor.Console
 			port = new SerialPort(portName, newBaudRate);
 			port.Open();
 
+			await Task.Delay(500);
+
 			while (!port.IsOpen)
 				await Task.Delay(10);
+
+			SendCommand(port, string.Empty);
 
 			return port;
 		}
@@ -293,10 +302,10 @@ namespace NextionHardwareMonitor.Console
 		
 		private void SendCommand(params string[] commands)
 		{
-			SendCommand(_port.BaseStream, commands);
+			SendCommand(_port, commands);
 		}
 		
-		private static void SendCommand(Stream stream, params string[] commands)
+		private static void SendCommand(SerialPort port, params string[] commands)
 		{
 			using var commandBytes = new MemoryStream();
 
@@ -306,8 +315,10 @@ namespace NextionHardwareMonitor.Console
 				commandBytes.Write(InterCommand);
 			}
 
-			stream.Write(commandBytes.ToArray());
-			stream.Flush();
+			var buffer = commandBytes.ToArray();
+			//port.Write(buffer, 0, buffer.Length);
+			port.BaseStream.Write(buffer, 0, buffer.Length);
+			port.BaseStream.Flush();
 
 			System.Console.WriteLine($"Write: {Encoding.UTF8.GetString(commandBytes.ToArray())}");
 		}
